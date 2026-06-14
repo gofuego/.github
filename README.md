@@ -48,6 +48,38 @@ jobs:
     uses: gofuego/.github/.github/workflows/fuego-check.yml@main
 ```
 
+## `fuego-adr-deploy.yml` — build & publish an ADR site
+
+Builds an [ADR](https://github.com/gofuego/fuego-adr) site from a folder of
+`*.adr.md` files and publishes it like `fuego-deploy`, but using the `fuego-adr`
+tool (fetched at a pinned `adr_ref` — nothing is added to the repo's `go.mod`).
+
+| Input | Effect |
+|-------|--------|
+| `adr_path` | folder of `*.adr.md` files (default `adrs`) |
+| `studio_base` | build → push to **`fuego-pages`** (fuego-studio) |
+| `pages_base` | build → push to **`gh-pages`** (GitHub Pages) |
+| `adr_ref` | `fuego-adr` version (default pinned) |
+
+```yaml
+# .github/workflows/adrs.yml in a repo with an adrs/ folder
+name: ADRs
+on:
+  push:
+    branches: [main]
+    paths: [adrs/**]
+  workflow_dispatch:
+jobs:
+  adrs:
+    permissions: { contents: write }
+    uses: gofuego/.github/.github/workflows/fuego-adr-deploy.yml@main
+    with:
+      studio_base: /gofuego/my-repo   # served read-only in fuego-studio
+```
+
+ADR sites are typically served **read-only** — set `editing: false` in the repo's
+`.fuego-studio.yaml`.
+
 ## Versioning
 
 Callers reference `@main` for now (changes apply to every site on next run). If you

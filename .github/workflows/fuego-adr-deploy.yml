@@ -1,0 +1,92 @@
+name: Fuego ADR deploy
+
+# Reusable deploy workflow for ADR sites built with the fuego-adr tool. Runs
+# `fuego-adr build <adr_path>` for one or two base URLs and publishes each build
+# to its serve branch:
+#   - studio_base → built for fuego-studio's mount path, pushed to `fuego-pages`
+#   - pages_base  → built for a GitHub Pages project site, pushed to `gh-pages`
+# Pass either or both; omit one to skip that host. The repo only needs the ADR
+# *.adr.md files — the tool is fetched at the pinned adr_ref, nothing is added to
+# the repo's go.mod.
+#
+# Usage (caller):
+#   jobs:
+#     adrs:
+#       permissions: { contents: write }
+#       uses: gofuego/.github/.github/workflows/fuego-adr-deploy.yml@main
+#       with:
+#         adr_path: adrs
+#         studio_base: /gofuego/<repo>
+
+on:
+  workflow_call:
+    inputs:
+      adr_path:
+        description: directory containing the *.adr.md files
+        type: string
+        required: false
+        default: "adrs"
+      studio_base:
+        description: base_url for the fuego-studio build (pushed to fuego-pages); omit to skip
+        type: string
+        required: false
+        default: ""
+      pages_base:
+        description: base_url for the GitHub Pages build (pushed to gh-pages); omit to skip
+        type: string
+        required: false
+        default: ""
+      adr_ref:
+        description: fuego-adr version/ref to run (pinned for reproducible builds)
+        type: string
+        required: false
+        default: "v0.1.1"
+      go_version:
+        description: Go toolchain version
+        type: string
+        required: false
+        default: "1.25"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: fuego-adr-deploy-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - name: Guard — at least one base provided
+        if: inputs.studio_base == '' && inputs.pages_base == ''
+        run: |
+          echo "::error::provide studio_base and/or pages_base"
+          exit 1
+
+      # fuego-studio build → fuego-pages
+      - name: Build ADRs for fuego-studio
+        if: inputs.studio_base != ''
+        run: go run github.com/gofuego/fuego-adr@${{ inputs.adr_ref }} build "${{ inputs.adr_path }}" --base-url "${{ inputs.studio_base }}" -o build
+      - name: Publish to fuego-pages
+        if: inputs.studio_base != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build
+          publish_branch: fuego-pages
+
+      # GitHub Pages build → gh-pages
+      - name: Build ADRs for GitHub Pages
+        if: inputs.pages_base != ''
+        run: go run github.com/gofuego/fuego-adr@${{ inputs.adr_ref }} build "${{ inputs.adr_path }}" --base-url "${{ inputs.pages_base }}" -o build
+      - name: Publish to gh-pages
+        if: inputs.pages_base != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build
+          publish_branch: gh-pages
