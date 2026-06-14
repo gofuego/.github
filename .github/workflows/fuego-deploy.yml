@@ -1,0 +1,78 @@
+name: Fuego deploy
+
+# Reusable deploy workflow for Fuego sites. A site builds with one or two
+# base URLs and publishes each build to its serve branch:
+#   - studio_base → built for fuego-studio's mount path, pushed to `fuego-pages`
+#   - pages_base  → built for a GitHub Pages project site, pushed to `gh-pages`
+# Pass either, both, or (for a root Pages deploy) "/". Omit one to skip that host.
+#
+# Usage (caller):
+#   jobs:
+#     deploy:
+#       uses: gofuego/.github/.github/workflows/fuego-deploy.yml@main
+#       with:
+#         studio_base: /gofuego/<repo>
+#         pages_base: /<repo>        # omit for studio-only sites
+
+on:
+  workflow_call:
+    inputs:
+      studio_base:
+        description: base_url for the fuego-studio build (pushed to fuego-pages); omit to skip
+        type: string
+        required: false
+        default: ""
+      pages_base:
+        description: base_url for the GitHub Pages build (pushed to gh-pages); omit to skip
+        type: string
+        required: false
+        default: ""
+      go_version:
+        description: Go toolchain version
+        type: string
+        required: false
+        default: "1.25"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: fuego-deploy-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - name: Guard — at least one base provided
+        if: inputs.studio_base == '' && inputs.pages_base == ''
+        run: |
+          echo "::error::provide studio_base and/or pages_base"
+          exit 1
+
+      # fuego-studio build → fuego-pages
+      - name: Build for fuego-studio
+        if: inputs.studio_base != ''
+        run: go run . build --base-url "${{ inputs.studio_base }}"
+      - name: Publish to fuego-pages
+        if: inputs.studio_base != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build
+          publish_branch: fuego-pages
+
+      # GitHub Pages build → gh-pages
+      - name: Build for GitHub Pages
+        if: inputs.pages_base != ''
+        run: go run . build --base-url "${{ inputs.pages_base }}"
+      - name: Publish to gh-pages
+        if: inputs.pages_base != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build
+          publish_branch: gh-pages

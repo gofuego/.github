@@ -1,0 +1,37 @@
+name: Fuego check
+
+# Reusable check workflow for Fuego sites: compile and validate the site
+# without publishing. Run it on pull requests (including the ones fuego-studio
+# opens from its edit branch) and on feature-branch pushes, so a broken build
+# or a content error is caught before it reaches the deploying branch.
+#
+# Usage (caller):
+#   on:
+#     pull_request:
+#     push:
+#       branches-ignore: [main, gh-pages, fuego-pages, fuego-studio-edits]
+#   jobs:
+#     check:
+#       uses: gofuego/.github/.github/workflows/fuego-check.yml@main
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        description: Go toolchain version
+        type: string
+        required: false
+        default: "1.25"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+      - name: Compile
+        run: go build ./...
+      - name: Validate site
+        run: go run . validate
