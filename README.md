@@ -11,6 +11,7 @@ Builds a Fuego site for one or two base URLs and publishes each to its serve bra
 |-------|--------|
 | `studio_base` | build for the fuego-studio mount path → push to **`fuego-pages`** |
 | `pages_base` | build for a GitHub Pages project site → push to **`gh-pages`** |
+| `check_links` | fail the build on a broken internal link (default `false`; requires fuego ≥ v0.4.0) |
 | `go_version` | Go toolchain (default `1.25`) |
 
 Pass either, both, or `"/"` (root Pages). Omitting one skips that host — one

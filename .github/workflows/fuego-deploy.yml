@@ -32,6 +32,11 @@ on:
         type: string
         required: false
         default: "1.25"
+      check_links:
+        description: fail the build on a broken internal link (requires fuego ≥ v0.4.0)
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   deploy:
@@ -56,7 +61,7 @@ jobs:
       # fuego-studio build → fuego-pages
       - name: Build for fuego-studio
         if: inputs.studio_base != ''
-        run: go run . build --base-url "${{ inputs.studio_base }}"
+        run: go run . build --base-url "${{ inputs.studio_base }}" ${{ inputs.check_links && '--check-links --strict-links' || '' }}
       - name: Publish to fuego-pages
         if: inputs.studio_base != ''
         uses: peaceiris/actions-gh-pages@v4
@@ -68,7 +73,7 @@ jobs:
       # GitHub Pages build → gh-pages
       - name: Build for GitHub Pages
         if: inputs.pages_base != ''
-        run: go run . build --base-url "${{ inputs.pages_base }}"
+        run: go run . build --base-url "${{ inputs.pages_base }}" ${{ inputs.check_links && '--check-links --strict-links' || '' }}
       - name: Publish to gh-pages
         if: inputs.pages_base != ''
         uses: peaceiris/actions-gh-pages@v4
