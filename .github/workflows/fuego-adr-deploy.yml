@@ -40,7 +40,7 @@ on:
         description: fuego-adr version/ref to run (pinned for reproducible builds)
         type: string
         required: false
-        default: "v0.1.1"
+        default: "v0.1.2"
       go_version:
         description: Go toolchain version
         type: string
