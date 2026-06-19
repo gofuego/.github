@@ -126,6 +126,62 @@ jobs:
 ADR sites are typically served **read-only** — set `editing: false` in the repo's
 `.fuego-studio.yaml`.
 
+## Governance — when each workflow runs
+
+These repos use a **`develop`-default, protected-`main`** flow, and the triggers
+are wired to match:
+
+- **CI / check** runs on **pull requests** and on **`develop`** pushes
+  (`branches-ignore: [main, gh-pages, fuego-pages, fuego-studio-edits]`) — a broken
+  build or content error is caught before it can reach `main`.
+- **Deploy** runs on **push to `main`** — i.e. when you merge the `develop → main`
+  pull request. Because `main` is protected (PR required), a site only deploys
+  through a reviewed merge, never a stray push. `workflow_dispatch` re-runs a deploy
+  by hand.
+
+So the lifecycle of a change is: branch off `develop` → open a PR (check/CI runs) →
+merge to `develop` → open the `develop → main` PR → merge it (deploy runs).
+
+## Wiring a new repo
+
+Pick the row(s) that match and add the caller(s) under `.github/workflows/` (full
+snippets in the sections above):
+
+| Repo kind | Add | Calls |
+|-----------|-----|-------|
+| Go pack / service / tool | `ci.yml` | `go-ci.yml` |
+| Standalone Fuego site | `check.yml` + `deploy.yml` | `fuego-check` + `fuego-deploy` |
+| Fuego site in a **subdirectory** | `check.yml` + `deploy.yml` with `project_dir` | same, scoped to the subdir |
+| Repo with an `adrs/` folder | `adrs.yml` | `fuego-adr-deploy` |
+
+A **subset** site (the project lives in, say, `docs/`) uses the same workflows with
+one extra input:
+
+```yaml
+# check.yml — validate a site that lives in docs/
+jobs:
+  check:
+    uses: gofuego/.github/.github/workflows/fuego-check.yml@main
+    with:
+      project_dir: docs
+```
+
+```yaml
+# deploy.yml — and deploy it (output is taken from docs/build)
+jobs:
+  deploy:
+    permissions: { contents: write }
+    uses: gofuego/.github/.github/workflows/fuego-deploy.yml@main
+    with:
+      project_dir: docs
+      studio_base: /gofuego/my-repo
+      pages_base: /my-repo
+```
+
+Then, outside these workflows, finish the repo's governance: set its **default
+branch to `develop`**, **protect `main`**, and (for public repos) add the **CLA**
+workflow.
+
 ## Versioning
 
 Callers reference `@main` for now (changes apply to every site on next run). If you
