@@ -1,7 +1,50 @@
 # gofuego/.github
 
-Org-shared, **reusable** GitHub Actions workflows for [Fuego](https://github.com/gofuego/fuego) sites.
-A site repo calls these instead of copy-pasting a deploy pipeline.
+Org-shared, **reusable** GitHub Actions workflows for the [Fuego](https://github.com/gofuego/fuego)
+ecosystem — both **Fuego sites** (check/deploy) and **Go modules** (build/test). A
+repo calls these instead of copy-pasting a pipeline.
+
+## Choosing a workflow
+
+Two questions pick the workflow: **what is the repo** (a Go module or a Fuego
+site), and **does the project own the repo root or live in a subdirectory**. Every
+workflow takes a directory input (`working_directory` / `project_dir`, default
+`.`) so the *subset* case — a docs site or module that is only part of a larger
+repo — uses the same pipeline as a standalone one.
+
+| Repo is… | CI (on PR / develop) | CD (on merge to main) |
+|----------|----------------------|------------------------|
+| a Go module (pack, service, tool) | `go-ci.yml` | — (or an image build, later) |
+| a Fuego site | `fuego-check.yml` | `fuego-deploy.yml` |
+| an ADR folder | — | `fuego-adr-deploy.yml` |
+
+The **hosting target** is independent of all this: `studio_base` → `fuego-pages`
+(the fuego-studio mount), `pages_base` → `gh-pages` (GitHub Pages). Pass either or
+both — one deploy workflow covers studio-only, Pages-only, and dual-host sites.
+
+## `go-ci.yml` — build & test a Go module
+
+`go build ./...` + `go vet ./...` + `go test` (race by default). Use
+`working_directory` for a module that is a subset of the repo.
+
+| Input | Effect |
+|-------|--------|
+| `working_directory` | module dir (default `.`; a subdir for a subset module) |
+| `race` | run tests with `-race` (default `true`) |
+| `test_args` | packages/flags for `go test` (default `./...`) |
+| `go_version` | Go toolchain (default `1.25`) |
+
+```yaml
+# .github/workflows/ci.yml in a Go repo
+name: CI
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, gh-pages, fuego-pages, fuego-studio-edits]
+jobs:
+  ci:
+    uses: gofuego/.github/.github/workflows/go-ci.yml@main
+```
 
 ## `fuego-deploy.yml` — build & publish
 
@@ -12,6 +55,7 @@ Builds a Fuego site for one or two base URLs and publishes each to its serve bra
 | `studio_base` | build for the fuego-studio mount path → push to **`fuego-pages`** |
 | `pages_base` | build for a GitHub Pages project site → push to **`gh-pages`** |
 | `check_links` | fail the build on a broken internal link (default `false`; requires fuego ≥ v0.4.0) |
+| `project_dir` | site project directory (default `.`; a subdir when the site is a subset of the repo) |
 | `go_version` | Go toolchain (default `1.25`) |
 
 Pass either, both, or `"/"` (root Pages). Omitting one skips that host — one
@@ -35,7 +79,8 @@ jobs:
 
 Builds (`go build ./...`) and validates (`go run . validate`) the site **without
 publishing**. Run it on pull requests — including the ones fuego-studio opens from
-its edit branch — and on feature-branch pushes.
+its edit branch — and on feature-branch pushes. Pass `project_dir` (default `.`)
+when the site lives in a subdirectory of a larger repo (e.g. an engine's `docs/`).
 
 ```yaml
 # .github/workflows/check.yml in a site repo

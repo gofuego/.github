@@ -22,10 +22,18 @@ on:
         type: string
         required: false
         default: "1.25"
+      project_dir:
+        description: site project directory (use a subdir when the site is a subset of the repo, e.g. docs)
+        type: string
+        required: false
+        default: "."
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.project_dir }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

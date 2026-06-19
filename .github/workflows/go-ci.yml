@@ -1,0 +1,57 @@
+name: Go CI
+
+# Reusable build + test workflow for any Go module in the org (packs, services,
+# tools). It supports a module that owns the repo root *or* lives in a
+# subdirectory (via `working_directory`), so the same pipeline gates a standalone
+# library and a module that is only a subset of a larger repo.
+#
+# Usage (caller):
+#   on:
+#     pull_request:
+#     push:
+#       branches-ignore: [main, gh-pages, fuego-pages, fuego-studio-edits]
+#   jobs:
+#     ci:
+#       uses: gofuego/.github/.github/workflows/go-ci.yml@main
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        description: Go toolchain version
+        type: string
+        required: false
+        default: "1.25"
+      working_directory:
+        description: module directory (use a subdir when the module is a subset of the repo)
+        type: string
+        required: false
+        default: "."
+      race:
+        description: run tests with the race detector
+        type: boolean
+        required: false
+        default: true
+      test_args:
+        description: packages/flags passed to `go test`
+        type: string
+        required: false
+        default: "./..."
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ${{ inputs.race && '-race' || '' }} ${{ inputs.test_args }}

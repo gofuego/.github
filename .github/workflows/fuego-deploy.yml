@@ -37,12 +37,20 @@ on:
         type: boolean
         required: false
         default: false
+      project_dir:
+        description: site project directory (use a subdir when the site is a subset of the repo, e.g. docs)
+        type: string
+        required: false
+        default: "."
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.project_dir }}
     concurrency:
       group: fuego-deploy-${{ github.ref }}
       cancel-in-progress: true
@@ -67,7 +75,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build
+          publish_dir: ${{ inputs.project_dir == '.' && 'build' || format('{0}/build', inputs.project_dir) }}
           publish_branch: fuego-pages
 
       # GitHub Pages build → gh-pages
@@ -79,5 +87,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build
+          publish_dir: ${{ inputs.project_dir == '.' && 'build' || format('{0}/build', inputs.project_dir) }}
           publish_branch: gh-pages
